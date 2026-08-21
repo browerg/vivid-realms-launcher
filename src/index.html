@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vivid Realms VTT</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <div class="hero-art" aria-hidden="true"></div>
+    <div class="veil" aria-hidden="true"></div>
+    <div class="particles" aria-hidden="true"></div>
+
+    <header class="titlebar">
+      <div class="brand-mini"><span class="brand-glyph">◇</span> VIVID REALMS</div>
+      <div class="window-actions">
+        <button id="minimize" aria-label="Minimize">—</button>
+        <button id="close" aria-label="Close">×</button>
+      </div>
+    </header>
+
+    <section class="content">
+      <div class="eyebrow">RWBY VIRTUAL TABLETOP</div>
+      <h1>HOST YOUR<br><span>WORLD.</span></h1>
+      <p class="lead">Campaigns, combat, maps, character sheets, Dust, Aura, and every story your table creates.</p>
+
+      <div class="status-line">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="statusText">Checking installation…</span>
+        <span id="launcherVersion" class="version">Launcher v0.1.21</span>
+      </div>
+
+      <button id="updateNotice" class="update-notice hidden" type="button" title="Open update settings">
+        <span class="update-notice-dot"></span>
+        <span id="updateNoticeText">Update available</span>
+        <strong>VIEW</strong>
+      </button>
+
+      <div class="progress-shell">
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+          <div id="progressGlow" class="progress-glow"></div>
+        </div>
+        <div class="progress-copy">
+          <strong id="progressTitle">Ready</strong>
+          <span id="progressDetail">Preparing launcher…</span>
+          <b id="progressPercent">0%</b>
+        </div>
+      </div>
+
+      <div id="invitePanel" class="invite-panel hidden">
+        <div>
+          <small>PLAYER INVITE LINK</small>
+          <strong id="inviteUrl"></strong>
+        </div>
+        <button id="copyLink" class="ghost-button">COPY</button>
+      </div>
+
+      <div class="action-row">
+        <button id="primaryAction" class="primary-button">
+          <span class="button-shine"></span>
+          <span id="primaryLabel">INSTALL VTT</span>
+        </button>
+        <button id="stopHosting" class="danger-button hidden">STOP</button>
+        <button id="openLocal" class="icon-button" title="Open local VTT">↗</button>
+        <button id="settingsToggle" class="icon-button" title="Launcher tools">⚙</button>
+      </div>
+
+            <section id="toolsPanel" class="tools-panel hidden">
+        <div class="tools-panel-heading">
+          <div>
+            <small>LAUNCHER CONTROL</small>
+            <strong>Settings & Tools</strong>
+          </div>
+          <button id="closeToolsPanel" class="tools-close" type="button" aria-label="Close settings">×</button>
+        </div>
+
+        <div class="tools-scroll">
+          <section class="tools-section update-section">
+            <div class="tools-section-heading">
+              <span>
+                <small>UPDATES</small>
+                <strong>VTT & Launcher</strong>
+              </span>
+              <button id="checkUpdatesButton" class="compact-action" type="button">Check now</button>
+            </div>
+            <div id="updateStatusCard" class="update-status-card">
+              <span id="vttUpdateState"><strong>VTT</strong><small>Not checked yet</small></span>
+              <span id="launcherUpdateState"><strong>Launcher</strong><small>v0.1.21</small></span>
+            </div>
+            <label class="settings-switch">
+              <span><strong>Check automatically</strong><small>Look for VTT and launcher updates when the launcher opens.</small></span>
+              <input id="updateChecksEnabled" type="checkbox" checked />
+            </label>
+            <div class="tools-action-grid">
+              <button id="updateButton" title="Update the active VTT source from GitHub.">Update VTT</button>
+              <button id="updateLauncherButton" type="button" disabled>Update Launcher</button>
+            </div>
+          </section>
+
+          <section class="tools-section">
+            <div class="tools-section-heading">
+              <span><small>SESSION</small><strong>Discord</strong></span>
+            </div>
+            <button id="discordSettingsButton" class="wide-action" type="button">Discord notification settings</button>
+          </section>
+
+          <section class="tools-section">
+            <div class="tools-section-heading">
+              <span><small>DATA</small><strong>Backups & Files</strong></span>
+            </div>
+            <div class="tools-action-grid">
+              <button id="backupButton">Back Up VTT Data</button>
+              <button id="restoreBackupButton">Restore Backup</button>
+              <button id="openBackupsButton">Open Backup Folder</button>
+              <button id="openFolder">Open Game Folder</button>
+            </div>
+          </section>
+
+          <section class="tools-section">
+            <div class="tools-section-heading">
+              <span><small>DIAGNOSTICS</small><strong>Launcher</strong></span>
+            </div>
+            <div class="tools-action-grid">
+              <button id="showLog">Installation Log</button>
+              <button id="uninstallLauncherButton" class="launcher-uninstall-button" title="Remove the launcher app. VTT data and backups are kept.">Uninstall Launcher</button>
+            </div>
+          </section>
+
+          <section class="tools-section developer-section">
+            <button
+              id="developerToolsToggle"
+              class="developer-tools-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="developerToolsPanel"
+            >
+              <span>
+                <strong>Developer tools</strong>
+                <small>Live reload, local source, and project path</small>
+              </span>
+              <span id="developerToolsChevron" class="developer-tools-chevron">+</span>
+            </button>
+
+            <div id="developerToolsPanel" class="developer-tools-panel hidden">
+              <label class="dev-mode-toggle" title="Runs Vite and the server in watch mode for coding and live reload.">
+                <input id="devModeToggle" type="checkbox" />
+                <span class="dev-check" aria-hidden="true">✓</span>
+                <span><strong>Developer mode</strong><small>Live reload · ports 5173 + 3001</small></span>
+              </label>
+              <label class="dev-mode-toggle" title="Runs the code and database from your local development project instead of the launcher's installed copy.">
+                <input id="localProjectToggle" type="checkbox" />
+                <span class="dev-check" aria-hidden="true">✓</span>
+                <span><strong>Use local development project</strong><small>Update VTT will pull this Git repo when enabled.</small></span>
+              </label>
+              <label class="local-project-path">
+                <span>Local project folder</span>
+                <input id="localProjectPath" value="C:\Users\pirat\dnd-vtt-rwby" />
+              </label>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="discordPanel" class="discord-panel hidden">
+        <div class="discord-panel-heading">
+          <span><strong>Discord session notifications</strong><small>Optional · incoming webhook only</small></span>
+          <button id="closeDiscordPanel" type="button">Close</button>
+        </div>
+        <p>Keep your players updated when the VTT goes live and when the session ends. Session Notes is simply a shared link — no Google API or account connection is required.</p>
+
+        <label class="discord-master-toggle">
+          <span>
+            <strong>Discord notifications</strong>
+            <small>Master switch. When off, the launcher will never post session start/end messages.</small>
+          </span>
+          <input id="discordEnabled" type="checkbox" />
+        </label>
+        <label class="discord-webhook-field">
+          <span>Discord webhook URL</span>
+          <input id="discordWebhookUrl" type="password" autocomplete="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…" />
+        </label>
+        <label class="discord-webhook-field">
+          <span>Session Notes URL <small>Optional · Google Doc, Notion, etc.</small></span>
+          <input id="discordSessionNotesUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://docs.google.com/document/d/…" />
+        </label>
+        <label class="discord-webhook-field">
+          <span>Session announcement <small>Optional · shown in the Session Started post</small></span>
+          <textarea id="discordSessionAnnouncement" maxlength="1200" spellcheck="true" placeholder="Example: The party has reached Mantle. Trouble is brewing, and the Winter Maiden is still missing…"></textarea>
+        </label>
+        <div class="discord-lifecycle-toggles">
+          <label class="discord-toggle">
+            <input id="discordAnnounceStart" type="checkbox" checked />
+            <span><strong>Session started</strong><small>Post the fresh Join Session link when Cloudflare is ready.</small></span>
+          </label>
+          <label class="discord-toggle">
+            <input id="discordAnnounceEnd" type="checkbox" checked />
+            <span><strong>Session ended</strong><small>Post the session duration and Session Notes link when hosting stops.</small></span>
+          </label>
+        </div>
+        <div class="discord-actions">
+          <button id="saveDiscordButton" type="button">Save Discord Settings</button>
+          <button id="testDiscordButton" type="button">Send Test Message</button>
+        </div>
+        <small id="discordStatus" class="discord-status">Start and end announcements are enabled by default. The end message is sent only after a session actually reached the online state.</small>
+      </section>
+
+      <section id="logPanel" class="log-panel hidden">
+        <div class="log-heading">
+          <span>LAUNCHER LOG</span>
+          <button id="closeLog">Close</button>
+        </div>
+        <pre id="logOutput"></pre>
+      </section>
+    </section>
+
+    <footer>
+      <span>VIVID REALMS</span>
+      <span>Keep the launcher open while hosting.</span>
+    </footer>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
