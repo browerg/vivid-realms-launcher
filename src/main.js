@@ -9,7 +9,7 @@ const { Readable } = require("node:stream");
 const GITHUB_REPO = "browerg/dnd-vtt";
 const REPO_ZIP = "https://github.com/browerg/dnd-vtt/archive/refs/heads/rwby-theme.zip";
 const BRANCH = "rwby-theme";
-const VERSION = "0.1.21";
+const VERSION = app.getVersion();
 const LAUNCHER_RELEASE_PREFIX = "launcher-v";
 const BACKUP_FORMAT = "vivid-realms-backup";
 const BACKUP_VERSION = 1;
@@ -27,6 +27,9 @@ let discordEndAnnouncementAttempted = false;
 let sessionStartedAt = null;
 let updateNoticeKey = "";
 let lastUpdateCheck = null;
+let lastUpdateCheckAt = 0;
+const AUTO_UPDATE_CACHE_MS = 15 * 60 * 1000;
+const MANUAL_UPDATE_THROTTLE_MS = 30 * 1000;
 
 const paths = {
   root: path.join(app.getPath("userData"), "game"),
@@ -125,6 +128,7 @@ async function loadLauncherSettings() {
     discordAnnounceStart: true,
     discordAnnounceEnd: true,
     updateChecksEnabled: true,
+    updateCache: null,
   };
 
   try {
@@ -137,6 +141,7 @@ async function loadLauncherSettings() {
       discordAnnounceStart: typeof parsed?.discordAnnounceStart === "boolean" ? parsed.discordAnnounceStart : defaults.discordAnnounceStart,
       discordAnnounceEnd: typeof parsed?.discordAnnounceEnd === "boolean" ? parsed.discordAnnounceEnd : defaults.discordAnnounceEnd,
       updateChecksEnabled: typeof parsed?.updateChecksEnabled === "boolean" ? parsed.updateChecksEnabled : defaults.updateChecksEnabled,
+      updateCache: parsed?.updateCache && typeof parsed.updateCache === "object" ? parsed.updateCache : defaults.updateCache,
     };
   } catch (error) {
     if (error?.code !== "ENOENT") log("[discord] Launcher settings could not be read; using defaults.");
@@ -811,6 +816,14 @@ function compareVersions(a, b) {
   return 0;
 }
 
+function formatUpdateError(error) {
+  const message = String(error?.message || error || "Update check failed");
+  if (/rate limit/i.test(message)) return message;
+  if (/GitHub returned HTTP 403/i.test(message)) return "GitHub temporarily refused the update check";
+  if (/AbortError|aborted|timeout/i.test(message)) return "GitHub update check timed out";
+  return message;
+}
+
 async function fetchJson(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
@@ -822,7 +835,15 @@ async function fetchJson(url) {
       },
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error("GitHub returned HTTP " + response.status);
+    if (!response.ok) {
+      const remaining = response.headers.get("x-ratelimit-remaining");
+      const reset = Number(response.headers.get("x-ratelimit-reset") || 0);
+      if (response.status === 403 && remaining === "0") {
+        const resetText = reset ? ` · resets ${new Date(reset * 1000).toLocaleTimeString()}` : "";
+        throw new Error("GitHub rate limit reached" + resetText);
+      }
+      throw new Error("GitHub returned HTTP " + response.status);
+    }
     return await response.json();
   } finally {
     clearTimeout(timer);
@@ -902,8 +923,26 @@ async function getLocalProjectHead(localProjectPath) {
 
 async function checkForUpdates(options = {}) {
   const settings = await loadLauncherSettings();
-  if (options.manual !== true && settings.updateChecksEnabled === false) {
+  const now = Date.now();
+  const manual = options.manual === true;
+
+  if (!manual && settings.updateChecksEnabled === false) {
     return { ok: true, disabled: true, launcherVersion: VERSION };
+  }
+
+  // Repeated clicks in the same session should not hammer GitHub.
+  if (lastUpdateCheck && now - lastUpdateCheckAt < MANUAL_UPDATE_THROTTLE_MS) {
+    return { ...lastUpdateCheck, cached: true };
+  }
+
+  // Automatic checks survive launcher restarts for 15 minutes. Manual Check now bypasses this cache.
+  const cached = settings.updateCache;
+  const cachedAt = Number(cached?.timestamp || 0);
+  const cachedResult = cached?.result;
+  if (!manual && cachedResult && cachedResult.launcherVersion === VERSION && now - cachedAt < AUTO_UPDATE_CACHE_MS) {
+    lastUpdateCheck = cachedResult;
+    lastUpdateCheckAt = cachedAt;
+    return { ...cachedResult, cached: true };
   }
 
   const [remoteVttResult, launcherReleaseResult] = await Promise.allSettled([
@@ -913,6 +952,8 @@ async function checkForUpdates(options = {}) {
 
   const remoteVtt = remoteVttResult.status === "fulfilled" ? remoteVttResult.value : null;
   const launcherRelease = launcherReleaseResult.status === "fulfilled" ? launcherReleaseResult.value : null;
+  const vttCheckError = remoteVttResult.status === "rejected" ? formatUpdateError(remoteVttResult.reason) : "";
+  const launcherCheckError = launcherReleaseResult.status === "rejected" ? formatUpdateError(launcherReleaseResult.reason) : "";
 
   const useLocalProject = Boolean(options.useLocalProject);
   const local = useLocalProject
@@ -930,6 +971,8 @@ async function checkForUpdates(options = {}) {
     launcherVersion: VERSION,
     launcherUpdateAvailable,
     launcherRelease,
+    launcherCheckError,
+    vttCheckError,
     vttUpdateAvailable,
     vtt: {
       localSha: local?.sha || "",
@@ -940,7 +983,10 @@ async function checkForUpdates(options = {}) {
       source: useLocalProject ? "local-project" : "managed",
     },
   };
+
   lastUpdateCheck = result;
+  lastUpdateCheckAt = now;
+  await saveLauncherSettings({ updateCache: { timestamp: now, result } });
 
   const noticeKey = `${result.vtt.remoteSha}|${launcherRelease?.version || ""}`;
   if ((vttUpdateAvailable || launcherUpdateAvailable) && noticeKey !== updateNoticeKey) {
@@ -1352,19 +1398,6 @@ function createWindow() {
   win.loadFile(path.join(__dirname, "index.html"));
   win.once("ready-to-show", () => {
     win.show();
-    setTimeout(async () => {
-      try {
-        const settings = await loadLauncherSettings();
-        if (settings.updateChecksEnabled !== false) {
-          const result = await checkForUpdates({ manual: false });
-          if (result?.vttUpdateAvailable || result?.launcherUpdateAvailable) {
-            send("launcher:update-status", result);
-          }
-        }
-      } catch (error) {
-        log("[update] Automatic update check failed: " + (error.message || String(error)));
-      }
-    }, 1200);
   });
 }
 

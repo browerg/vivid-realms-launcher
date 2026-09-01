@@ -1,6 +1,6 @@
 {
   "name": "vivid-realms-launcher",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "description": "Vivid Realms VTT installer, updater, and host launcher",
   "main": "src/main.js",
   "author": "Vivid Realms",

@@ -110,15 +110,21 @@ function renderUpdateStatus(result) {
     return;
   }
 
-  const vttText = result.vtt?.remoteShortSha
-    ? (result.vttUpdateAvailable
-      ? `${result.vtt.localShortSha || "unknown"} → ${result.vtt.remoteShortSha}`
-      : `Current · ${result.vtt.remoteShortSha}`)
-    : "Unable to read GitHub";
+  const vttText = result.vttCheckError
+    ? `Unable to check · ${result.vttCheckError}`
+    : result.vtt?.remoteShortSha
+      ? (result.vttUpdateAvailable
+        ? `${result.vtt.localShortSha || "unknown"} → ${result.vtt.remoteShortSha}`
+        : `Current · ${result.vtt.remoteShortSha}`)
+      : "Unable to read GitHub";
 
-  const launcherText = result.launcherUpdateAvailable
-    ? `v${result.launcherVersion} → v${result.launcherRelease?.version || "new"}`
-    : `Current · v${result.launcherVersion}`;
+  const launcherText = result.launcherCheckError
+    ? `Unable to check · ${result.launcherCheckError}`
+    : result.launcherRelease?.version
+      ? (result.launcherUpdateAvailable
+        ? `v${result.launcherVersion} → v${result.launcherRelease.version}`
+        : `Current · v${result.launcherVersion}`)
+      : `No launcher release found · v${result.launcherVersion}`;
 
   els.vttUpdateState.innerHTML = `<strong>VTT${result.vttUpdateAvailable ? " · UPDATE" : ""}</strong><small>${vttText}</small>`;
   els.launcherUpdateState.innerHTML = `<strong>Launcher${result.launcherUpdateAvailable ? " · UPDATE" : ""}</strong><small>${launcherText}</small>`;
@@ -132,10 +138,13 @@ function renderUpdateStatus(result) {
   const available = [];
   if (result.vttUpdateAvailable) available.push("VTT");
   if (result.launcherUpdateAvailable) available.push("Launcher");
-  els.updateNotice.classList.toggle("hidden", available.length === 0);
+  const checkErrors = [result.vttCheckError, result.launcherCheckError].filter(Boolean);
+  els.updateNotice.classList.toggle("hidden", available.length === 0 && checkErrors.length === 0);
   els.updateNoticeText.textContent = available.length
     ? `${available.join(" + ")} update${available.length > 1 ? "s" : ""} available`
-    : "Everything is current";
+    : checkErrors.length
+      ? "Update check incomplete — use Check now to retry"
+      : "Everything is current";
 }
 
 async function checkUpdates(manual = false) {
