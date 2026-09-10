@@ -6,7 +6,9 @@ const state = {
   inviteUrl: "",
   devMode: localStorage.getItem("vivid-dev-mode") === "true",
   useLocalProject: localStorage.getItem("vivid-local-project") === "true",
-  localProjectPath: localStorage.getItem("vivid-local-project-path") || "C:\\Users\\pirat\\dnd-vtt-rwby",
+  // Filled from the main process on boot when nothing is stored — it knows the
+  // real home directory, which the renderer does not.
+  localProjectPath: localStorage.getItem("vivid-local-project-path") || "",
   launcherUpdateAvailable: false,
   latestLauncherVersion: "",
 };
@@ -467,6 +469,10 @@ window.vivid.onError(({ message }) => {
 (async () => {
   const [status, settings] = await Promise.all([window.vivid.getStatus(), window.vivid.getSettings()]);
   state.installed = status.installed;
+  if (!state.localProjectPath && status.defaultLocalProjectPath) {
+    state.localProjectPath = status.defaultLocalProjectPath;
+    els.localProjectPath.value = state.localProjectPath;
+  }
   els.discordWebhook.value = settings.discordWebhookUrl || "";
   els.discordNotes.value = settings.discordSessionNotesUrl || "";
   els.discordAnnouncement.value = settings.discordSessionAnnouncement || "";

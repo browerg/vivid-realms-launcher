@@ -7,6 +7,14 @@ const { pipeline } = require("node:stream/promises");
 const { Readable } = require("node:stream");
 
 const GITHUB_REPO = "browerg/dnd-vtt";
+// Launcher installers were historically published as `launcher-v*` releases on
+// the VTT repo, which is why the launcher's own repo has none. Rather than pick
+// one and strand the other, check both and take whichever is newest: releases
+// can then move to vivid-realms-launcher whenever it suits, and builds from
+// 0.1.23 onwards will follow without needing a bridge release. Installs at or
+// below 0.1.22 only ever look at GITHUB_REPO, so keep publishing there until
+// those have all updated.
+const LAUNCHER_RELEASE_REPOS = ["browerg/vivid-realms-launcher", GITHUB_REPO];
 const REPO_ZIP = "https://github.com/browerg/dnd-vtt/archive/refs/heads/rwby-theme.zip";
 const BRANCH = "rwby-theme";
 const VERSION = app.getVersion();
@@ -862,7 +870,30 @@ async function getRemoteVttHead() {
 }
 
 async function getLatestLauncherRelease() {
-  const releases = await fetchJson(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`);
+  const results = await Promise.allSettled(
+    LAUNCHER_RELEASE_REPOS.map((repo) => launcherReleaseFrom(repo))
+  );
+
+  const found = results
+    .filter((result) => result.status === "fulfilled" && result.value)
+    .map((result) => result.value);
+
+  if (found.length) {
+    return found.reduce((best, item) =>
+      compareVersions(item.version, best.version) > 0 ? item : best
+    );
+  }
+
+  // A repo with no launcher release yet resolves to null, which is not a
+  // failure. Only surface an error if every lookup actually failed.
+  if (results.every((result) => result.status === "rejected")) {
+    throw results[0].reason;
+  }
+  return null;
+}
+
+async function launcherReleaseFrom(repo) {
+  const releases = await fetchJson(`https://api.github.com/repos/${repo}/releases?per_page=30`);
   const release = Array.isArray(releases)
     ? releases.find((item) => !item?.draft && String(item?.tag_name || "").startsWith(LAUNCHER_RELEASE_PREFIX))
     : null;
@@ -1581,6 +1612,10 @@ ipcMain.handle("launcher:get-status", () => ({
   gamePath: paths.root,
   backupsPath: paths.backups,
   version: VERSION,
+  // The renderer used to ship a hardcoded developer path from one machine,
+  // which meant Local Project mode pointed at a folder that did not exist on
+  // anyone else's PC. Resolve it here, where the real home directory is known.
+  defaultLocalProjectPath: path.join(app.getPath("home"), "dnd-vtt-rwby"),
 }));
 ipcMain.on("window:minimize", () => win?.minimize());
 ipcMain.on("window:close", () => win?.close());
