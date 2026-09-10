@@ -352,7 +352,28 @@ async function refreshWindowsPath() {
       (error, stdout) => resolve(error ? "" : String(stdout).trim())
     );
   });
-  process.env.Path = [machinePath, userPath, process.env.Path].filter(Boolean).join(";");
+  // This runs before every host attempt, and again inside
+  // resolveNpmInvocation, so it used to prepend the whole machine and user PATH
+  // onto the existing value twice per attempt. PATH grew by several KB each
+  // time; once the environment block nears the 32,767 character Windows limit
+  // the child process receives a truncated PATH and stops resolving
+  // node_modules/.bin binaries -- which is how dev mode ended up reporting
+  // 'vite' is not recognized and never opening port 5173. Dedupe so repeated
+  // calls are idempotent.
+  const seen = new Set();
+  process.env.Path = [machinePath, userPath, process.env.Path || ""]
+    .filter(Boolean)
+    .join(";")
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter((entry) => {
+      if (!entry) return false;
+      const key = entry.toLowerCase().replace(/[\\/]+$/, "");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(";");
 }
 
 function findCommand(command) {
@@ -457,18 +478,33 @@ function spawnPortable(command, args, options = {}) {
   });
 }
 
-function getRuntimeEnvironment(extraEnv = {}) {
+function getRuntimeEnvironment(extraEnv = {}, projectRoot = "") {
   const env = { ...process.env, ...extraEnv };
+  const prepend = [];
+
+  // npm workspaces hoist binaries to the repo root, and `npm run --workspace=x`
+  // runs the script from the workspace folder, which has no node_modules/.bin
+  // of its own. Putting the root bin directory on PATH explicitly means vite
+  // and tsx resolve no matter how npm chooses to set things up.
+  if (projectRoot) {
+    const projectBin = path.join(projectRoot, "node_modules", ".bin");
+    if (fs.existsSync(projectBin)) prepend.push(projectBin);
+  }
 
   if (process.platform === "win32") {
     const bundledNodeDirectory = path.join(process.resourcesPath, "runtime", "node");
     if (fs.existsSync(path.join(bundledNodeDirectory, "node.exe"))) {
-      env.Path = [bundledNodeDirectory, env.Path || env.PATH || ""]
-        .filter(Boolean)
-        .join(";");
-      env.PATH = env.Path;
+      prepend.push(bundledNodeDirectory);
     }
   }
+
+  if (!prepend.length) return env;
+
+  // Windows compares environment names case-insensitively, but a plain object
+  // can hold "Path" and "PATH" as two separate keys and hand the child a
+  // conflicting environment. Write back to whichever key is already present.
+  const pathKey = Object.keys(env).find((name) => name.toLowerCase() === "path") || "PATH";
+  env[pathKey] = [...prepend, env[pathKey] || ""].filter(Boolean).join(path.delimiter);
 
   return env;
 }
@@ -477,7 +513,7 @@ function run(command, args, options = {}) {
     log(`> ${command} ${args.join(" ")}`);
     const child = spawnPortable(command, args, {
       ...options,
-      env: getRuntimeEnvironment(options.env || {}),
+      env: getRuntimeEnvironment(options.env || {}, options.cwd || ""),
     });
     child.stdout?.on("data", (d) => log(d));
     child.stderr?.on("data", (d) => log(d));
@@ -1298,7 +1334,7 @@ async function killListenersOnPorts(ports) {
 function startProcess(key, command, args, cwd) {
   const child = spawnPortable(command, args, {
     cwd,
-    env: getRuntimeEnvironment({ FORCE_COLOR: "0" }),
+    env: getRuntimeEnvironment({ FORCE_COLOR: "0" }, cwd),
   });
   processes[key] = child;
   child.stdout?.on("data", (d) => {
