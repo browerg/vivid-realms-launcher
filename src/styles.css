@@ -558,3 +558,38 @@ footer {
   .tools-action-grid,
   .update-status-card { grid-template-columns: 1fr; }
 }
+
+/* ---- What's New (changelog fetched from the VTT repo) ---- */
+.changelog-panel {
+  position: absolute; left: 0; top: 0; width: 620px; min-height: 420px;
+  max-height: calc(100% - 24px); overflow: hidden; z-index: 21;
+  display: grid; grid-template-rows: auto 1fr; gap: 14px;
+  background: rgba(6,10,18,.98); border: 1px solid rgba(126,225,255,.25);
+  box-shadow: 0 25px 80px rgba(0,0,0,.58); padding: 18px;
+}
+.changelog-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.changelog-heading span { display: grid; gap: 3px; }
+.changelog-heading strong { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
+.changelog-heading small { color: rgba(230,241,255,.62); font-size: 10px; }
+.changelog-heading-actions { display: flex; gap: 8px; }
+.changelog-heading button {
+  border: 1px solid rgba(255,255,255,.2); color: #e5e9f6; background: rgba(12,18,31,.7);
+  cursor: pointer; padding: 8px 11px; font-size: 11px;
+}
+.changelog-heading button:hover { background: rgba(255,255,255,.11); }
+.changelog-heading button:disabled { opacity: .5; cursor: default; }
+.changelog-body { overflow-y: auto; padding-right: 6px; user-select: text; }
+.changelog-status { margin: 0; color: #aeb9ce; font-size: 11px; line-height: 1.5; }
+.changelog-status.error { color: #ff91a5; }
+.changelog-release { margin: 0 0 20px; }
+.changelog-release h3 {
+  margin: 0 0 8px; padding-bottom: 6px; font-size: 11px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--cyan); border-bottom: 1px solid rgba(126,225,255,.18);
+}
+.changelog-release h4 {
+  margin: 12px 0 5px; font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: rgba(230,241,255,.72);
+}
+.changelog-release ul { margin: 0; padding-left: 18px; }
+.changelog-release li { margin: 0 0 6px; color: #aeb9ce; font-size: 11px; line-height: 1.55; }
+.changelog-release li strong { color: #e5e9f6; }

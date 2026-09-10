@@ -65,6 +65,7 @@
         </button>
         <button id="stopHosting" class="danger-button hidden">STOP</button>
         <button id="openLocal" class="icon-button" title="Open local VTT">↗</button>
+        <button id="changelogToggle" class="icon-button" title="What's new in Vivid Realms">📜</button>
         <button id="settingsToggle" class="icon-button" title="Launcher tools">⚙</button>
       </div>
 
@@ -205,6 +206,19 @@
           <button id="testDiscordButton" type="button">Send Test Message</button>
         </div>
         <small id="discordStatus" class="discord-status">Start and end announcements are enabled by default. The end message is sent only after a session actually reached the online state.</small>
+      </section>
+
+      <section id="changelogPanel" class="changelog-panel hidden">
+        <div class="changelog-heading">
+          <span><strong>What's New</strong><small>Vivid Realms VTT · updated live from GitHub</small></span>
+          <div class="changelog-heading-actions">
+            <button id="refreshChangelog" type="button" title="Check GitHub again">Refresh</button>
+            <button id="closeChangelog" type="button">Close</button>
+          </div>
+        </div>
+        <div id="changelogBody" class="changelog-body">
+          <p class="changelog-status">Loading the latest changes…</p>
+        </div>
       </section>
 
       <section id="logPanel" class="log-panel hidden">

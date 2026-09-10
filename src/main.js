@@ -884,6 +884,88 @@ async function getLatestLauncherRelease() {
   };
 }
 
+// The changelog is fetched from the VTT repo rather than bundled in the
+// installer, so a new entry reaches players as soon as it is pushed instead of
+// waiting for a launcher release.
+const CHANGELOG_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/${BRANCH}/CHANGELOG.md`;
+const CHANGELOG_CACHE_MS = 10 * 60 * 1000;
+let changelogCache = null;
+let changelogCachedAt = 0;
+
+// Minimal parse of the subset of Markdown the changelog actually uses:
+// "## " is a dated entry, "### " a group inside it, "- " a bullet. Everything
+// is returned as plain strings — the renderer builds DOM nodes rather than
+// injecting HTML, so nothing in this file can inject markup into the launcher.
+function parseChangelog(markdown) {
+  const releases = [];
+  let release = null;
+  let group = null;
+
+  for (const rawLine of String(markdown).split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.startsWith("## ")) {
+      release = { heading: line.slice(3).trim(), groups: [] };
+      group = null;
+      releases.push(release);
+      continue;
+    }
+    if (!release) continue; // preamble above the first entry is for maintainers
+    if (line.startsWith("### ")) {
+      group = { name: line.slice(4).trim(), items: [] };
+      release.groups.push(group);
+      continue;
+    }
+    if (line.startsWith("- ")) {
+      if (!group) {
+        group = { name: "", items: [] };
+        release.groups.push(group);
+      }
+      group.items.push(line.slice(2).trim());
+      continue;
+    }
+    // A wrapped bullet continues the previous item.
+    if (line && group && group.items.length && !line.startsWith("#") && line !== "---") {
+      group.items[group.items.length - 1] += " " + line;
+    }
+  }
+
+  return releases.filter((entry) => entry.groups.some((g) => g.items.length));
+}
+
+async function getChangelog(force = false) {
+  const now = Date.now();
+  if (!force && changelogCache && now - changelogCachedAt < CHANGELOG_CACHE_MS) {
+    return { ok: true, releases: changelogCache, cached: true };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(CHANGELOG_URL, {
+      headers: { "User-Agent": "Vivid-Realms-Launcher/" + VERSION },
+      signal: controller.signal,
+      cache: "no-cache",
+    });
+    if (!response.ok) throw new Error("GitHub returned HTTP " + response.status);
+    const releases = parseChangelog(await response.text());
+    if (!releases.length) throw new Error("The changelog was empty.");
+    changelogCache = releases;
+    changelogCachedAt = now;
+    return { ok: true, releases, cached: false };
+  } catch (error) {
+    // Offline is the common case here and is not worth alarming anyone over.
+    const message =
+      error?.name === "AbortError"
+        ? "GitHub did not respond in time."
+        : String(error?.message || error);
+    // Stale content beats an error screen.
+    if (changelogCache) return { ok: true, releases: changelogCache, cached: true, stale: true, message };
+    return { ok: false, message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function execCapture(command, args, options = {}) {
   return await new Promise((resolve, reject) => {
     execFile(command, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
@@ -1454,6 +1536,14 @@ ipcMain.handle("launcher:test-discord", async (_event, value) => {
   try {
     await testDiscordWebhook(value);
     return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error.message || String(error) };
+  }
+});
+
+ipcMain.handle("launcher:get-changelog", async (_event, options = {}) => {
+  try {
+    return await getChangelog(options?.force === true);
   } catch (error) {
     return { ok: false, message: error.message || String(error) };
   }

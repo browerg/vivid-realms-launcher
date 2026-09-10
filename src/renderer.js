@@ -54,7 +54,96 @@ const els = {
   inviteUrl: $("inviteUrl"),
   logPanel: $("logPanel"),
   logOutput: $("logOutput"),
+  changelogPanel: $("changelogPanel"),
+  changelogToggle: $("changelogToggle"),
+  changelogClose: $("closeChangelog"),
+  changelogRefresh: $("refreshChangelog"),
+  changelogBody: $("changelogBody"),
 };
+
+let changelogLoaded = false;
+
+// The changelog arrives from the network, so it is built as DOM text nodes
+// rather than assigned as HTML. **bold** is the only markup honoured.
+function appendRichText(parent, text) {
+  String(text)
+    .split("**")
+    .forEach((chunk, index) => {
+      if (!chunk) return;
+      if (index % 2 === 1) {
+        const strong = document.createElement("strong");
+        strong.textContent = chunk;
+        parent.appendChild(strong);
+      } else {
+        parent.appendChild(document.createTextNode(chunk));
+      }
+    });
+}
+
+function renderChangelog(result) {
+  const body = els.changelogBody;
+  body.textContent = "";
+
+  if (!result?.ok) {
+    const p = document.createElement("p");
+    p.className = "changelog-status error";
+    p.textContent =
+      "Couldn't reach GitHub for the changelog. " + (result?.message || "") + " Try Refresh once you're online.";
+    body.appendChild(p);
+    return;
+  }
+
+  if (result.stale) {
+    const p = document.createElement("p");
+    p.className = "changelog-status";
+    p.textContent = "Showing the last version that loaded — GitHub is unreachable right now.";
+    body.appendChild(p);
+  }
+
+  for (const release of result.releases) {
+    const section = document.createElement("section");
+    section.className = "changelog-release";
+
+    const h = document.createElement("h3");
+    h.textContent = release.heading;
+    section.appendChild(h);
+
+    for (const group of release.groups) {
+      if (group.name) {
+        const h4 = document.createElement("h4");
+        h4.textContent = group.name;
+        section.appendChild(h4);
+      }
+      const ul = document.createElement("ul");
+      for (const item of group.items) {
+        const li = document.createElement("li");
+        appendRichText(li, item);
+        ul.appendChild(li);
+      }
+      section.appendChild(ul);
+    }
+
+    body.appendChild(section);
+  }
+}
+
+async function loadChangelog(force = false) {
+  els.changelogRefresh.disabled = true;
+  if (force || !changelogLoaded) {
+    els.changelogBody.textContent = "";
+    const p = document.createElement("p");
+    p.className = "changelog-status";
+    p.textContent = "Loading the latest changes…";
+    els.changelogBody.appendChild(p);
+  }
+  try {
+    const result = await window.vivid.getChangelog({ force });
+    renderChangelog(result);
+    changelogLoaded = Boolean(result?.ok);
+  } finally {
+    els.changelogRefresh.disabled = false;
+  }
+}
 
 function syncActions() {
   els.primary.disabled = state.busy;
@@ -303,6 +392,14 @@ els.backup.addEventListener("click", () => window.vivid.backup());
 els.restore.addEventListener("click", () => window.vivid.restoreBackup());
 els.openBackups.addEventListener("click", () => window.vivid.openBackups());
 els.openFolder.addEventListener("click", () => window.vivid.openFolder());
+els.changelogToggle.addEventListener("click", () => {
+  const opening = els.changelogPanel.classList.contains("hidden");
+  els.changelogPanel.classList.toggle("hidden");
+  if (opening && !changelogLoaded) void loadChangelog(false); // fetch on first open only
+});
+els.changelogClose.addEventListener("click", () => els.changelogPanel.classList.add("hidden"));
+els.changelogRefresh.addEventListener("click", () => void loadChangelog(true));
+
 $("showLog").addEventListener("click", () => els.logPanel.classList.remove("hidden"));
 $("closeLog").addEventListener("click", () => els.logPanel.classList.add("hidden"));
 $("minimize").addEventListener("click", () => window.vivid.minimize());

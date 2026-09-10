@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("vivid", {
   install: () => ipcRenderer.send("launcher:install"),
   update: (options) => ipcRenderer.send("launcher:update", options),
   checkUpdates: (options) => ipcRenderer.invoke("launcher:check-updates", options),
+  getChangelog: (options) => ipcRenderer.invoke("launcher:get-changelog", options),
   installLauncherUpdate: () => ipcRenderer.invoke("launcher:install-launcher-update"),
   saveUpdateSettings: (value) => ipcRenderer.invoke("launcher:save-update-settings", value),
   uninstallLauncher: () => ipcRenderer.invoke("launcher:uninstall-launcher"),
