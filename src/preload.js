@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("vivid", {
   saveDiscordWebhook: (value) => ipcRenderer.invoke("launcher:save-discord-webhook", value),
   saveDiscordSettings: (value) => ipcRenderer.invoke("launcher:save-discord-settings", value),
   testDiscord: (value) => ipcRenderer.invoke("launcher:test-discord", value),
+  sendDiscordChangelog: (value) => ipcRenderer.invoke("launcher:send-discord-changelog", value),
   install: () => ipcRenderer.send("launcher:install"),
   update: (options) => ipcRenderer.send("launcher:update", options),
   checkUpdates: (options) => ipcRenderer.invoke("launcher:check-updates", options),

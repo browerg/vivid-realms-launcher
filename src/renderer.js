@@ -65,6 +65,105 @@ const els = {
 
 let changelogLoaded = false;
 
+const share = {
+  open: $("prepareDiscordChangelog"), composer: $("discordChangelogComposer"),
+  date: $("discordChangelogDate"), groups: $("discordChangelogGroups"),
+  title: $("discordChangelogTitle"), text: $("discordChangelogText"),
+  count: $("discordChangelogCount"), status: $("discordChangelogStatus"), send: $("sendDiscordChangelog"),
+};
+let shareReleases = [];
+let shareDraft = null;
+
+function updateSharePreview() {
+  shareDraft = null;
+  share.send.disabled = true;
+  share.title.textContent = "";
+  share.text.textContent = "";
+  share.count.dataset.error = "false";
+  share.status.textContent = "";
+  try {
+    const selected = [...share.groups.querySelectorAll("input:checked")].map((input) => Number(input.value));
+    const draft = window.discordChangelog.draft(shareReleases[Number(share.date.value)], selected);
+    share.title.textContent = draft.title;
+    appendRichText(share.text, draft.description);
+    share.count.textContent = `${draft.description.length.toLocaleString()} / 4,096 characters · One Discord post`;
+    window.discordChangelog.payload(draft); // Same validation as the main process.
+    shareDraft = draft;
+    share.send.disabled = false;
+  } catch (error) {
+    share.count.textContent = error.message;
+    share.count.dataset.error = "true";
+  }
+}
+
+function selectShareDate() {
+  share.groups.replaceChildren();
+  const legend = document.createElement("legend");
+  legend.textContent = "Sections to include";
+  share.groups.appendChild(legend);
+  const release = shareReleases[Number(share.date.value)];
+  release.groups.forEach((group, index) => {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = String(index);
+    checkbox.checked = true;
+    checkbox.addEventListener("change", updateSharePreview);
+    label.append(checkbox, document.createTextNode(group.name || "General updates"));
+    share.groups.appendChild(label);
+  });
+  updateSharePreview();
+}
+
+share.date.addEventListener("change", selectShareDate);
+share.open.addEventListener("click", async () => {
+  share.open.disabled = true;
+  share.status.textContent = "Loading changelog…";
+  share.status.dataset.kind = "working";
+  try {
+    const result = await window.vivid.getChangelog({ force: true });
+    if (!result?.ok || !result.releases?.length) throw new Error(result?.message || "No changelog entries are available.");
+    shareReleases = result.releases;
+    share.date.replaceChildren();
+    shareReleases.forEach((release, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = release.heading;
+      share.date.appendChild(option);
+    });
+    share.composer.classList.remove("hidden");
+    selectShareDate();
+    share.status.dataset.kind = "";
+    share.status.textContent = result.stale ? "Offline: previewing the last changelog loaded. It may be out of date." : "Review the post above, then send when ready. No mentions will be pinged.";
+    share.date.focus();
+  } catch (error) {
+    share.status.textContent = error.message || "Could not load the changelog.";
+    share.status.dataset.kind = "error";
+  } finally { share.open.disabled = false; }
+});
+
+share.send.addEventListener("click", async () => {
+  if (!shareDraft || share.send.disabled) return;
+  share.send.disabled = true;
+  share.date.disabled = share.groups.disabled = share.open.disabled = true;
+  share.status.textContent = "Sending changelog…";
+  share.status.dataset.kind = "working";
+  let sent = false;
+  try {
+    const result = await window.vivid.sendDiscordChangelog(shareDraft);
+    if (!result?.ok) throw new Error(result?.message || "Could not confirm delivery. Check Discord before retrying.");
+    sent = true;
+    share.status.textContent = "Changelog sent to Discord.";
+    share.status.dataset.kind = "sent";
+  } catch (error) {
+    share.status.textContent = error.message || "Could not confirm delivery. Check Discord before retrying.";
+    share.status.dataset.kind = "error";
+  } finally {
+    share.date.disabled = share.groups.disabled = share.open.disabled = false;
+    share.send.disabled = sent;
+  }
+});
+
 // The changelog arrives from the network, so it is built as DOM text nodes
 // rather than assigned as HTML. **bold** is the only markup honoured.
 function appendRichText(parent, text) {

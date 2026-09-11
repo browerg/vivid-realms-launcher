@@ -52,6 +52,22 @@ the Vite dev server on `:5173` for working on the VTT itself.
 
 ## Developing
 
+### Sharing the VTT changelog to Discord
+
+In Discord settings, save the webhook for your chosen channel, then select
+**Choose changelog to share**. Pick a date and check the sections to include.
+Review the formatted post and click **Send to Discord**. This manual action is
+independent of the automatic session notification switch.
+
+The post preserves the changelog wording, includes a full-history link, and
+disables mentions. Selections over Discord's 4,096-character description limit
+must be shortened by deselecting sections; no content is silently truncated.
+An identical post is blocked for that webhook during the current launcher
+session. Delivery failures are never automatically retried; check the channel
+first when a timeout leaves delivery uncertain.
+
+Run `node --test test/*.test.js` for changelog formatting and payload checks.
+
 ```bash
 npm install
 npm start

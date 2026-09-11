@@ -206,6 +206,24 @@
           <button id="testDiscordButton" type="button">Send Test Message</button>
         </div>
         <small id="discordStatus" class="discord-status">Start and end announcements are enabled by default. The end message is sent only after a session actually reached the online state.</small>
+        <div class="discord-changelog">
+          <strong>Share what's new</strong>
+          <p>Choose a date and the sections your players should see. Sends one post to your saved webhook, independently of automatic session notifications.</p>
+          <div class="discord-actions"><button id="prepareDiscordChangelog" type="button">Choose changelog to share</button></div>
+          <div id="discordChangelogComposer" class="hidden">
+            <label class="discord-webhook-field"><span>Update date</span><select id="discordChangelogDate"></select></label>
+            <fieldset id="discordChangelogGroups"><legend>Sections to include</legend></fieldset>
+            <strong>Post preview</strong>
+            <article class="discord-changelog-preview">
+              <h3 id="discordChangelogTitle"></h3>
+              <div id="discordChangelogText"></div>
+              <small>Vivid Realms · Click the title in Discord for the full changelog</small>
+            </article>
+            <small id="discordChangelogCount"></small>
+            <div class="discord-actions"><button id="sendDiscordChangelog" type="button" disabled>Send to Discord</button></div>
+          </div>
+          <small id="discordChangelogStatus" class="discord-status" role="status" aria-live="polite"></small>
+        </div>
       </section>
 
       <section id="changelogPanel" class="changelog-panel hidden">
@@ -235,6 +253,7 @@
       <span>Keep the launcher open while hosting.</span>
     </footer>
   </main>
+  <script src="discordChangelog.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

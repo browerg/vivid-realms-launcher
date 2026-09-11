@@ -325,6 +325,20 @@ footer {
 }
 
 /* Discord session notifications */
+.discord-changelog { display: grid; gap: 12px; border-top: 1px solid #46506a; padding-top: 16px; }
+.discord-changelog > strong { font-size: 12px; color: var(--cyan); }
+#discordChangelogComposer:not(.hidden) { display: grid; gap: 12px; }
+#discordChangelogComposer > strong { font-size: 11px; }
+#discordChangelogDate { background: #111827; color: #e5e9f6; border: 1px solid #647089; padding: 8px; }
+#discordChangelogGroups { display: grid; gap: 8px; border: 1px solid #46506a; margin: 0; padding: 10px; font-size: 11px; }
+#discordChangelogGroups label { display: flex; align-items: center; gap: 8px; }
+.discord-changelog-preview { padding: 14px; border-left: 4px solid #c7a15a; background: #171c28; border-radius: 4px; user-select: text; }
+.discord-changelog-preview h3 { margin: 0 0 12px; font-size: 13px; color: #e6c886; }
+#discordChangelogText { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; color: #e5e9f6; }
+.discord-changelog-preview small { display: block; margin-top: 14px; color: #aeb9ce; font-size: 10px; }
+#discordChangelogCount { color: #aeb9ce; }
+#discordChangelogCount[data-error="true"] { color: #ff9aad; }
+.discord-actions button:disabled { opacity: .5; cursor: default; }
 .discord-panel {
   position: absolute; left: 0; top: 0; width: 560px; min-height: 420px; max-height: calc(100% - 24px); overflow-y: auto; z-index: 21;
   display: grid; gap: 14px;

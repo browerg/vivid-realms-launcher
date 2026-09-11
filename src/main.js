@@ -5,6 +5,10 @@ const fsp = require("node:fs/promises");
 const path = require("node:path");
 const { pipeline } = require("node:stream/promises");
 const { Readable } = require("node:stream");
+const discordChangelog = require("./discordChangelog");
+
+let sendingChangelog = false;
+const sentChangelogs = new Set();
 
 const GITHUB_REPO = "browerg/dnd-vtt";
 // Launcher installers were historically published as `launcher-v*` releases on
@@ -1571,6 +1575,28 @@ ipcMain.handle("launcher:save-discord-webhook", async (_event, value) => {
     return { ok: true, configured: Boolean(discordWebhookUrl) };
   } catch (error) {
     return { ok: false, message: error.message || String(error) };
+  }
+});
+
+ipcMain.handle("launcher:send-discord-changelog", async (_event, value) => {
+  if (sendingChangelog) return { ok: false, message: "A changelog post is already being sent." };
+  sendingChangelog = true;
+  let attempted = false;
+  try {
+    const settings = await loadLauncherSettings();
+    if (!settings.discordWebhookUrl) throw new Error("Save a Discord webhook URL in the settings first.");
+    const payload = discordChangelog.payload(value);
+    const key = require("node:crypto").createHash("sha256").update(settings.discordWebhookUrl + JSON.stringify(payload)).digest("hex");
+    if (sentChangelogs.has(key)) return { ok: false, message: "This exact post was already sent to this webhook during this launcher session." };
+    attempted = true;
+    await executeDiscordWebhook(settings.discordWebhookUrl, payload);
+    sentChangelogs.add(key);
+    return { ok: true };
+  } catch (error) {
+    // Do not retry automatically: a timeout may happen after Discord accepted it.
+    return { ok: false, message: (attempted ? "Could not confirm delivery. Check the Discord channel before retrying. " : "") + (error.message || String(error)) };
+  } finally {
+    sendingChangelog = false;
   }
 });
 
