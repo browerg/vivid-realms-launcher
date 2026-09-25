@@ -6,6 +6,7 @@ const path = require("node:path");
 const { pipeline } = require("node:stream/promises");
 const { Readable } = require("node:stream");
 const discordChangelog = require("./discordChangelog");
+const { stopProcessTree } = require("./stopProcessTree");
 
 let sendingChangelog = false;
 const sentChangelogs = new Set();
@@ -1259,6 +1260,16 @@ async function installOrUpdate(options = {}) {
   busy = true;
   try {
     send("launcher:state", { busy: true });
+    if (!await ensureStoppedForAction("Update VTT")) return;
+
+    // Another launcher session can leave watchers alive after its tracked
+    // parent exits. Refuse before copying SQLite data from a live game.
+    const managedChildren = await new Promise((resolve, reject) => {
+      execFile("powershell.exe", ["-NoProfile", "-Command",
+        `Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -and $_.CommandLine.IndexOf('${quoteForPsSingle(paths.root + path.sep)}', [StringComparison]::OrdinalIgnoreCase) -ge 0 } | Select-Object -ExpandProperty ProcessId`],
+        { windowsHide: true, timeout: 15000 }, (error, stdout) => error ? reject(error) : resolve(stdout.trim()));
+    });
+    if (managedChildren) throw new Error("The installed VTT is still running in another launcher or terminal. Stop that game, close other launcher windows, and retry the update. Your installed game has not been replaced.");
 
     if (options.useLocalProject) {
       await updateLocalGitProject(options);
@@ -1302,6 +1313,10 @@ async function installOrUpdate(options = {}) {
     send("launcher:installed", { installed: true, version: VERSION });
     if (win && !win.isDestroyed()) win.setProgressBar(-1);
   } catch (error) {
+    log("[update] " + (error.stack || error.message || String(error)));
+    if (["EPERM", "EBUSY", "EACCES"].includes(error.code)) {
+      error.message = "Windows blocked the update because a game file is in use or inaccessible. Stop hosting, close other launcher windows and terminals opened in the game folder, then retry. Details: " + error.message;
+    }
     progress(0, "Installation failed", error.message || String(error));
     send("launcher:error", { message: error.message || String(error) });
     if (win && !win.isDestroyed()) win.setProgressBar(-1);
@@ -1385,6 +1400,7 @@ async function waitForOrigin(url, timeoutMs = 30000) {
 }
 
 async function startHosting(_event, options = {}) {
+  if (busy) return;
   const useLocalProject = Boolean(options?.useLocalProject);
   const requestedLocalPath = String(options?.localProjectPath || "").trim();
   const gameRoot = useLocalProject
@@ -1465,12 +1481,8 @@ async function stopHosting() {
 
   for (const key of Object.keys(processes)) {
     const child = processes[key];
-    if (child && !child.killed) {
-      try {
-        spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true });
-      } catch {}
-    }
-    processes[key] = null;
+    await stopProcessTree(child);
+    if (processes[key] === child) processes[key] = null;
   }
   tunnelBuffer = "";
   activeInviteUrl = "";
