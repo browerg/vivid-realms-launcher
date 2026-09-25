@@ -65,6 +65,7 @@
         </button>
         <button id="stopHosting" class="danger-button hidden">STOP</button>
         <button id="openLocal" class="icon-button" title="Open local VTT">↗</button>
+        <button id="trailerToggle" class="icon-button" title="Watch the trailer">▶</button>
         <button id="changelogToggle" class="icon-button" title="What's new in Vivid Realms">📜</button>
         <button id="settingsToggle" class="icon-button" title="Launcher tools">⚙</button>
       </div>
@@ -246,6 +247,18 @@
         </div>
         <pre id="logOutput"></pre>
       </section>
+    </section>
+
+    <section id="trailerPanel" class="trailer-panel hidden" aria-label="Vivid Realms trailer">
+      <div class="trailer-frame">
+        <div class="changelog-heading">
+          <span><strong>Trailer</strong><small>Every legend needs a table</small></span>
+          <div class="changelog-heading-actions">
+            <button id="closeTrailer" type="button">Close</button>
+          </div>
+        </div>
+        <video id="trailerVideo" src="../assets/trailer.mp4" poster="../assets/trailer-poster.jpg" controls preload="none" playsinline></video>
+      </div>
     </section>
 
     <footer>

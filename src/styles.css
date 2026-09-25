@@ -586,6 +586,23 @@ footer {
 .changelog-heading strong { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
 .changelog-heading small { color: rgba(230,241,255,.62); font-size: 10px; }
 .changelog-heading-actions { display: flex; gap: 8px; }
+
+/* A video wants the whole window, so the trailer is a lightbox rather than a
+   corner panel -- a corner panel this size would sit on top of the action
+   row. It dims everything except the title bar (z-index 10), whose window
+   controls stay usable above it. Close with the button, Escape, or a click
+   outside the player. The player is 864x486 inside the 1180x720 window. */
+.trailer-panel {
+  position: absolute; inset: 0; z-index: 9;
+  display: grid; place-items: center;
+  background: rgba(3,6,12,.84);
+}
+.trailer-frame {
+  width: 900px; display: grid; gap: 12px; padding: 18px;
+  background: rgba(6,10,18,.98); border: 1px solid rgba(126,225,255,.25);
+  box-shadow: 0 25px 80px rgba(0,0,0,.58);
+}
+.trailer-frame video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 .changelog-heading button {
   border: 1px solid rgba(255,255,255,.2); color: #e5e9f6; background: rgba(12,18,31,.7);
   cursor: pointer; padding: 8px 11px; font-size: 11px;

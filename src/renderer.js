@@ -493,8 +493,32 @@ els.backup.addEventListener("click", () => window.vivid.backup());
 els.restore.addEventListener("click", () => window.vivid.restoreBackup());
 els.openBackups.addEventListener("click", () => window.vivid.openBackups());
 els.openFolder.addEventListener("click", () => window.vivid.openFolder());
+// The trailer is a lightbox over the whole window; What's New is closed
+// underneath it so the two never stack.
+const trailerPanel = $("trailerPanel");
+const trailerVideo = $("trailerVideo");
+function closeTrailer() {
+  trailerPanel.classList.add("hidden");
+  trailerVideo.pause();
+}
+$("trailerToggle").addEventListener("click", () => {
+  if (!trailerPanel.classList.contains("hidden")) return closeTrailer();
+  els.changelogPanel.classList.add("hidden");
+  trailerPanel.classList.remove("hidden");
+  if (trailerVideo.ended) trailerVideo.currentTime = 0;
+  void trailerVideo.play().catch(() => {}); // the click is the user gesture, so sound is allowed
+});
+$("closeTrailer").addEventListener("click", closeTrailer);
+trailerPanel.addEventListener("click", (event) => {
+  if (event.target === trailerPanel) closeTrailer(); // backdrop only, not the player
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !trailerPanel.classList.contains("hidden")) closeTrailer();
+});
+
 els.changelogToggle.addEventListener("click", () => {
   const opening = els.changelogPanel.classList.contains("hidden");
+  if (opening) closeTrailer();
   els.changelogPanel.classList.toggle("hidden");
   if (opening && !changelogLoaded) void loadChangelog(false); // fetch on first open only
 });
